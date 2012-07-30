@@ -47,8 +47,8 @@ class Stat(fuse.Stat):
         self.dt_ctime = dt_ctime or ts
 
     def __repr__(self):
-        return ("<Stat st_mode %s, st_nlink %s, st_uid %s, st_gid %s, "
-                "st_size %s>" % (self.st_mode, self.st_nlink, self.st_uid,
+        return ("<Stat st_mode=%#o, st_nlink=%s, st_uid=%s, st_gid=%s, "
+                "st_size=%s>" % (self.st_mode, self.st_nlink, self.st_uid,
                                  self.st_gid, self.st_size))
 
 
@@ -60,10 +60,8 @@ class FSObject(object):
         stat: Stat
         parent: Dir or None
     """
-    def __init__(self, name, id_, parent_id):
+    def __init__(self, name):
         self.name = name
-        self.id = id_
-        self.parent_id = parent_id
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, self.name)
@@ -77,11 +75,11 @@ class Dir(FSObject):
         stat: Stat
         files: dict mapping str names to File and Dir objects.
     """
-    def __init__(self, name, id_, parent_id, mode, uid, gid):
+    def __init__(self, name, mode, uid, gid):
         """
         Create a new directory object.
         """
-        super(Dir, self).__init__(name, id_, parent_id)
+        super(Dir, self).__init__(name)
         self.stat = Stat(mode, Stat.DIRSIZE, st_nlink=2, st_uid=uid, st_gid=gid)
         self.files = {}
 
@@ -96,10 +94,9 @@ class File(FSObject):
             For a symlink, this is the link text.
             Do not edit manually; use provided methods.
     """
-    def __init__(self, name, id_, parent_id, data, mode, uid, gid):
+    def __init__(self, name, mode, uid, gid, size):
         """
         Create a new file object, with the supplied contents.
         """
-        super(File, self).__init__(name, id_, parent_id)
-        self.stat = Stat(mode, len(data), st_nlink=1, st_uid=uid, st_gid=gid)
-        self.data = data
+        super(File, self).__init__(name)
+        self.stat = Stat(mode, size, st_nlink=1, st_uid=uid, st_gid=gid)
