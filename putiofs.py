@@ -3,67 +3,41 @@
 import errno
 import fuse
 import os
-import stat
-import pdb
 import putioapi
-from node import Dir, File
+from cachefs import CacheFS
+from node import Dir
 fuse.fuse_python_api = (0, 2)
-
-class CacheFS(object):
-    def __init__(self):
-        super(CacheFS, self).__init__()
-        self.inode_index = {}
-        self.path_index = {}
-        item = putioapi.Item(None, {'name': u'/', 'type': 'folder',
-                                    'id': 0, 'parent_id': 0})
-        self.root = self.register_inode(item.name, item)
-
-    def find_inode(self, path):
-        try:
-            return self.inode_index[self.path_index[path]]
-        except:
-#            pdb.set_trace()
-            raise
-
-    def register_inode(self, path, item):
-        if item.type == "folder":
-            st = Dir(item.name.encode('utf-8'), stat.S_IFDIR | 0755,
-                     os.getuid(), os.getgid())
-        else:
-            st = File(item.name.encode('utf-8'), stat.S_IFREG | 0644,
-                      os.getuid(), os.getgid(), int(item.size))
-        inode = CacheFSInode(item.id, item.parent_id, st, vars(item))
-        self.inode_index[inode.id] = inode
-        self.path_index[path] = inode.id
-        return inode
-
-class CacheFSInode(object):
-    def __init__(self, id, parent_id, stat, item):
-        super(CacheFSInode, self).__init__()
-        self.id = int(id)
-        self.parent_id = int(parent_id)
-        self.stat = stat
-        self.item = item
 
 class PutIOFS(fuse.Fuse):
     def __init__(self, *args, **kwargs):
         super(PutIOFS, self).__init__(*args, **kwargs)
         self.api = None
-        self.root_dir = None
         self.key = None
         self.secret = None
-        self.__fs_cache = CacheFS()
+        self.root_fs = None
 
     def updateAPI(self):
         self.api = putioapi.Api(self.key, self.secret)
+        item = putioapi.Item(self.api, {'type': 'folder', 'name': '.',
+                                        'id': 0, 'parent_id': 0})
+        self.root_fs = CacheFS(item.id, Dir(item.name).stat, item)
 
-    def fsinit(self):
-        """
-        Will be called when the file system has finished mounting, and is
-        ready to be used.
-        It doesn't have to exist, or do anything.
-        """
-        self.root_dir = self.__fs_cache.root.stat
+    def get_inode(self, path, item):
+        try:
+            return self.find_inode(path)
+        except KeyError:
+            return self.register_inode(path, item)
+
+    def find_inode(self, path):
+        dir_node = self.root_fs
+        for name in path.split(os.sep):
+            if name:
+                dir_node = dir_node.find_inode(name)
+        return dir_node
+
+    def register_inode(self, path, item):
+        dirname = os.path.dirname(path)
+        return self.find_inode(dirname).register_inode(item)
 
     def getattr(self, path):
         """
@@ -73,12 +47,13 @@ class PutIOFS(fuse.Fuse):
         print "getattr(%r)" % path
         if not path.startswith(os.sep):
             return None
-        path = path.split(os.sep)[1:]
-        print path
-        # Walk the directory hierarchy
-        return self.root_dir.stat
+        while True:
+            try:
+                return self.find_inode(path).stat
+            except KeyError:
+                list(self.readdir(os.path.dirname(path)))
 
-    def readdir(self, path, offset, dh=None):
+    def readdir(self, path, offset=0, dh=None):
         """
         Generator function. Produces a directory listing.
         Yields individual fuse.Direntry objects, one per file in the
@@ -93,30 +68,18 @@ class PutIOFS(fuse.Fuse):
         print "readdir(%r, %r, %r)" % (path, offset, dh)
         yield fuse.Direntry('.')
         yield fuse.Direntry('..')
-        inode = self.__fs_cache.find_inode(path)
-        for it in self.api.get_items(parent_id=inode.id):
-            name = it.name.encode('utf-8')
-            it_path = path + name
+        inode = self.find_inode(path)
+        items = [_.item for _ in inode.get_entries()]
+        if not items:
             try:
-                inode = self.__fs_cache.find_inode(it_path)
-            except KeyError:
-                inode = self.__fs_cache.register_inode(it_path, it)
+                items = self.api.get_items(parent_id=inode.id)
+            except putioapi.PutioError:
+                pass
+        for it in items:
+            name = it.name.encode('utf-8')
+            it_path = os.sep.join([path, name])
+            inode = self.get_inode(it_path, it)
             yield fuse.Direntry(name)
-
-#    def opendir(self, path):
-#        """
-#        Checks permissions for listing a directory.
-#        This should check the 'r' (read) permission on the directory.
-#
-#        On success, *may* return an arbitrary Python object, which will be
-#        used as the "fh" argument to all the directory operation methods on
-#        the directory. Or, may just return None on success.
-#        On failure, should return a negative errno code.
-#        Should return -errno.EACCES if disallowed.
-#        """
-#        if path == self.root_dir.name:
-#            return self.root_dir
-#        return Dir(path, stat.S_IFDIR | 0755, os.getuid(), os.getgid())
 
     def read(self, path, size, offset):
         return -errno.ENOSYS

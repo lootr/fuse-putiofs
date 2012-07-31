@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 import fuse
 import os
+import stat
 import time as _time
 
 class Stat(fuse.Stat):
@@ -75,7 +76,7 @@ class Dir(FSObject):
         stat: Stat
         files: dict mapping str names to File and Dir objects.
     """
-    def __init__(self, name, mode, uid, gid):
+    def __init__(self, name, mode=stat.S_IFDIR | 0755, uid=None, gid=None):
         """
         Create a new directory object.
         """
@@ -94,7 +95,7 @@ class File(FSObject):
             For a symlink, this is the link text.
             Do not edit manually; use provided methods.
     """
-    def __init__(self, name, mode, uid, gid, size):
+    def __init__(self, name, mode=stat.S_IFREG | 0644, uid=None, gid=None, size=0):
         """
         Create a new file object, with the supplied contents.
         """
