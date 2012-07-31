@@ -79,7 +79,7 @@ except ImportError:
 
 
 # setup
-RPC_URL = "http://api.put.io/v1"
+RPC_URL = "https://api.put.io/v1"
 
 # constants
 UNITS = ['B', 'K', 'M', 'G', 'T', 'P', 'E']
