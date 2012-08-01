@@ -47,11 +47,16 @@ class PutIOFS(fuse.Fuse):
         print "getattr(%r)" % path
         if not path.startswith(os.sep):
             return None
+        first_try = True
         while True:
             try:
                 return self.find_inode(path).stat
             except KeyError:
-                list(self.readdir(os.path.dirname(path)))
+                if first_try:
+                    list(self.readdir(os.path.dirname(path)))
+                    first_try = False
+                else:
+                    break
 
     def readdir(self, path, offset=0, dh=None):
         """
