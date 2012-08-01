@@ -4,6 +4,7 @@ import errno
 import fuse
 import putioapi
 from cachefs import CacheFS
+from error import AuthenticationFailed
 from node import Dir
 fuse.fuse_python_api = (0, 2)
 
@@ -30,6 +31,8 @@ class PutIOFS(fuse.Fuse):
 
     def initialize(self):
         self.api = putioapi.Api(self.key, self.secret)
+        if not self.api.access_token:
+            raise AuthenticationFailed
         item = putioapi.Item(self.api, {'type': 'folder', 'name': '.',
                                         'id': 0, 'parent_id': 0})
         self.root_fs = CacheFS(item.id, Dir(item.name).stat, item)
@@ -142,4 +145,7 @@ def main():
     server.main()
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception, ex:
+        print "ERROR: %s" % ex
