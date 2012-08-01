@@ -29,12 +29,16 @@ class PutIOFS(fuse.Fuse):
             head = head.rstrip(PATH_SEP)
         return head
 
+    def _genitem(self, **config):
+        config.setdefault('id', -1)
+        config.setdefault('parent_id', -1)
+        return putioapi.Item(self.api, config)
+
     def initialize(self):
         self.api = putioapi.Api(self.key, self.secret)
         if not self.api.access_token:
             raise AuthenticationFailed
-        item = putioapi.Item(self.api, {'type': 'folder', 'name': '.',
-                                        'id': 0, 'parent_id': 0})
+        item = self._genitem(type='folder', name='.', id=0, parent_id=0)
         self.root_fs = CacheFS(item.id, Dir(item.name).stat, item)
 
     def get_inode(self, path, item):
