@@ -16,7 +16,7 @@ class PutIOFS(fuse.Fuse):
         self.secret = None
         self.root_fs = None
 
-    def updateAPI(self):
+    def initialize(self):
         self.api = putioapi.Api(self.key, self.secret)
         item = putioapi.Item(self.api, {'type': 'folder', 'name': '.',
                                         'id': 0, 'parent_id': 0})
@@ -121,7 +121,7 @@ def main():
     server.parser.add_option(mountopt="secret", metavar="SECRET",
                              help="put.io API secret")
     server.parse(values=server, errex=1)
-    server.updateAPI()
+    server.initialize()
     server.main()
 
 if __name__ == '__main__':
