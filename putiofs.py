@@ -63,7 +63,6 @@ class PutIOFS(fuse.Fuse):
         Given a path string, returns the Dir or File object corresponding to
         the path, or None.
         """
-        print "getattr(%r)" % path
         if not path.startswith(PATH_SEP):
             return None
         first_try = True
@@ -89,7 +88,7 @@ class PutIOFS(fuse.Fuse):
         request starting the listing partway through (which I clearly don't
         yet support). Seems to always be 0 anyway.
         """
-        print "readdir(%r, %r, %r)" % (path, offset, dh)
+        #print "readdir(%r, %r, %r)" % (path, offset, dh)
         yield fuse.Direntry('.')
         yield fuse.Direntry('..')
         inode = self.find_inode(path)
