@@ -2,11 +2,12 @@
 # -*- encoding: utf-8 -*-
 import errno
 import fuse
-import os
 import putioapi
 from cachefs import CacheFS
 from node import Dir
 fuse.fuse_python_api = (0, 2)
+
+PATH_SEP = '/'
 
 class PutIOFS(fuse.Fuse):
     def __init__(self, *args, **kwargs):
@@ -15,6 +16,17 @@ class PutIOFS(fuse.Fuse):
         self.key = None
         self.secret = None
         self.root_fs = None
+
+    @staticmethod
+    def _dirname(p):
+        """
+        Roughly equivalent of os.path.dirname with specific separator.
+        """
+        i = p.rfind(PATH_SEP) + 1
+        head = p[:i]
+        if head and head != PATH_SEP*len(head):
+            head = head.rstrip(PATH_SEP)
+        return head
 
     def initialize(self):
         self.api = putioapi.Api(self.key, self.secret)
@@ -30,13 +42,13 @@ class PutIOFS(fuse.Fuse):
 
     def find_inode(self, path):
         dir_node = self.root_fs
-        for name in path.split(os.sep):
+        for name in path.split(PATH_SEP):
             if name:
                 dir_node = dir_node.find_inode(name)
         return dir_node
 
     def register_inode(self, path, item):
-        dirname = os.path.dirname(path)
+        dirname = self._dirname(path)
         return self.find_inode(dirname).register_inode(item)
 
     def getattr(self, path):
@@ -45,7 +57,7 @@ class PutIOFS(fuse.Fuse):
         the path, or None.
         """
         print "getattr(%r)" % path
-        if not path.startswith(os.sep):
+        if not path.startswith(PATH_SEP):
             return None
         first_try = True
         while True:
@@ -53,7 +65,7 @@ class PutIOFS(fuse.Fuse):
                 return self.find_inode(path).stat
             except KeyError:
                 if first_try:
-                    list(self.readdir(os.path.dirname(path)))
+                    list(self.readdir(self._dirname(path)))
                     first_try = False
                 else:
                     break
@@ -82,7 +94,7 @@ class PutIOFS(fuse.Fuse):
                 pass
         for it in items:
             name = it.name.encode('utf-8')
-            it_path = os.sep.join([path, name])
+            it_path = PATH_SEP.join([path, name])
             inode = self.get_inode(it_path, it)
             yield fuse.Direntry(name)
 
