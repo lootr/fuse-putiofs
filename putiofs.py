@@ -2,8 +2,9 @@
 # -*- encoding: utf-8 -*-
 import errno
 import fuse
+
 import putioapi
-from cachefs import CacheFS
+from cachefs import CacheDescriptor, CacheFS
 from error import AuthenticationFailed
 from node import Dir
 fuse.fuse_python_api = (0, 2)
@@ -17,6 +18,7 @@ class PutIOFS(fuse.Fuse):
         self.key = None
         self.secret = None
         self.root_fs = None
+        self.cache_fd = None
 
     @staticmethod
     def _dirname(p):
@@ -29,6 +31,9 @@ class PutIOFS(fuse.Fuse):
             head = head.rstrip(PATH_SEP)
         return head
 
+    def _geturl(self, path):
+        return self.find_inode(path).item.download_url
+
     def _genitem(self, **config):
         config.setdefault('id', -1)
         config.setdefault('parent_id', -1)
@@ -40,6 +45,7 @@ class PutIOFS(fuse.Fuse):
             raise AuthenticationFailed
         item = self._genitem(type='folder', name='.', id=0, parent_id=0)
         self.root_fs = CacheFS(item.id, Dir(item.name).stat, item)
+        self.cache_fd = CacheDescriptor((self.key, self.secret))
 
     def get_inode(self, path, item):
         try:
@@ -105,16 +111,18 @@ class PutIOFS(fuse.Fuse):
             yield fuse.Direntry(name)
 
     def read(self, path, size, offset):
-        return -errno.ENOSYS
+        return self.cache_fd.read(self._geturl(path), size, offset)
 
     def write(self, path, buf, offset):
         return -errno.ENOSYS
 
     def release(self, path, flags):
-        return -errno.ENOSYS
+        self.cache_fd.remove(self._geturl(path))
+        return 0
 
     def open(self, path, flags):
-        return -errno.ENOSYS
+        self.cache_fd.append(self._geturl(path))
+        return 0
 
     def truncate(self, path, size):
         return -errno.ENOSYS
@@ -152,3 +160,4 @@ if __name__ == '__main__':
         main()
     except Exception, ex:
         print "ERROR: %s" % ex
+        raise
