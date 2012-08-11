@@ -27,6 +27,7 @@ class HTTPContent(object):
         self.b64_creds = ':'.join(http_creds).encode('base64')[:-1]
         self.r = None
         self.buffer = str()
+        self.bufsize = 0L
         self.EOF = False
 
     def _recv(self, amt):
@@ -37,15 +38,16 @@ class HTTPContent(object):
             self.c.request("GET", self.path, None, hdrs)
             self.r = self.c.getresponse()
         ret = self.r.read(amt)
-        if amt > len(ret):
+        n_ret = len(ret)
+        if amt > n_ret:
             self.EOF = True
         self.buffer += ret
+        self.bufsize += n_ret
         return ret
 
     def read(self, size, offset):
-        bufsize = len(self.buffer)
-        if not self.EOF and size + offset > bufsize:
-            self._recv(size + offset - bufsize)
+        if not self.EOF and size + offset > self.bufsize:
+            self._recv(size + offset - self.bufsize)
         return self.buffer[offset:size+offset]
 
 class Inode(object):
