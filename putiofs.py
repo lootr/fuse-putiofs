@@ -94,16 +94,21 @@ class PutIOFS(fuse.Fuse):
         request starting the listing partway through (which I clearly don't
         yet support). Seems to always be 0 anyway.
         """
-        #print "readdir(%r, %r, %r)" % (path, offset, dh)
         yield fuse.Direntry('.')
         yield fuse.Direntry('..')
         inode = self.find_inode(path)
-        items = [_.item for _ in inode.get_entries()]
+        items = {_.item for _ in inode.get_entries()}
         if not items:
-            try:
-                items = self.api.get_items(parent_id=inode.id)
-            except putioapi.PutioError:
-                pass
+            while True:
+                try:
+                    newitems = set(self.api.get_items(20, len(items), inode.id))
+                except putioapi.PutioError:
+                    pass
+                if items & newitems:
+                    break
+                items |= newitems
+                if len(items) % 20:
+                    break
         for it in items:
             name = it.name.encode('utf-8')
             it_path = PATH_SEP.join([path, name])
