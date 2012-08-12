@@ -95,7 +95,6 @@ class CachedFileBuffer(object):
                     ret = self.index_tab[idx][newkey]
                     if key.stop - key.start != len(ret):
                         self.defragment()
-                        return self[key]
                     return ret
             elif idx <= key:
                 return self.index_tab[idx][key - idx]
