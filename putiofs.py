@@ -4,7 +4,7 @@ import errno
 import fuse
 
 import putioapi
-from cachefs import CacheDescriptor, CacheFS
+from cachefs import CacheManager, CacheFS
 from error import AuthenticationFailed
 from node import Dir
 fuse.fuse_python_api = (0, 2)
@@ -45,7 +45,7 @@ class PutIOFS(fuse.Fuse):
             raise AuthenticationFailed
         item = self._genitem(type='folder', name='.', id=0, parent_id=0)
         self.root_fs = CacheFS(item.id, Dir(item.name).stat, item)
-        self.cache_fd = CacheDescriptor((self.key, self.secret))
+        self.cache_fd = CacheManager((self.key, self.secret))
 
     def get_inode(self, path, item):
         try:
