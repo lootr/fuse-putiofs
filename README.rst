@@ -2,7 +2,8 @@ fuse-putiofs
 ============
 
 fuse-python is a fuse filesystem utilizing the put.io API.
-This is a *very early implementation*.
+
+**This is an early alpha version with only read-only capabilities**
 
 Dependencies
 ------------
@@ -20,4 +21,4 @@ Usage
 -o <key=KEY>        put.io API key
 -o <secret=SECRET>  put.io API secret
 
-``./putiofs.py MOUNTPOINT -okey=KEY,secret=SECRET``
+``./putiofs.py MOUNTPOINT -osync_read,key=KEY,secret=SECRET``
